@@ -1,0 +1,78 @@
+# Reproducible Research: Peer Assessment 1
+========================================================
+
+
+## Loading and preprocessing the data
+```{r echo=TRUE}
+setwd("C:/Users/Helga/Documents/gabriel/cursos")
+# point to activity.csv
+bd=read.csv("activity.csv",header=T)
+# convert date
+bd$date=as.Date(bd$date,"%Y-%m-%d")
+# Prepare for English week days
+Sys.setlocale("LC_TIME", "English")
+sum_steps<- aggregate(steps~date,bd,sum,na.rm=TRUE)
+```
+
+## What is mean total number of steps taken per day?
+```{r fig.width=7, fig.height=6}
+hist(sum_steps$steps,col="Red",main="Total number of steps taken per day frequencies",xlab="Total number of steps")
+```
+```{r echo=TRUE}
+ meansteps = mean(sum_steps$steps,na.rm=T)
+  mediansteps = median(sum_steps$steps,na.rm=T)
+```
+
+* The __mean__ total number of steps taken per day is _`r meansteps`_
+* The __median__ total number of steps taken per day is _`r mediansteps`_
+
+## What is the average daily activity pattern?
+```{r echo=TRUE}
+mean_steps_interval <- aggregate(steps~interval,bd,mean,na.rm=TRUE)
+```
+```{r fig.width=7, fig.height=6}
+plot(mean_steps_interval$interval,mean_steps_interval$steps,type="l",xlab="Step interval",ylab="Mean number of steps")
+```
+```{r echo=TRUE}
+maxIdx = which.max(mean_steps_interval$steps)
+maxInterval = mean_steps_interval[maxIdx, 'interval']
+maxAvgStep = mean_steps_interval[maxIdx, 'steps']
+```
+* On average across all the days in the dataset,the 5 minute interval "__`r maxInterval`__" contains maximum mean number of steps (_`r maxAvgStep`_ steps)
+
+## Imputing missing values
+```{r echo=TRUE}
+totalNA = sum(is.na(bd$steps))
+```
+* The total number of __missing (NA)__ values is _`r totalNA`_
+
+Apply a single imputation method (by considering data missing completely at random - MCAR - i guess): substitution by the mean.
+```{r echo=TRUE}
+naIdx = which(is.na(bd$steps))
+naInterval = bd[naIdx, 3]
+fillSteps = sapply(naInterval, function(x) { mean_steps_interval[(mean_steps_interval$interval==x), 2]})
+
+nbd = bd
+nbd[naIdx, 'steps'] = fillSteps #fill in missing data
+
+NsumStep = aggregate(steps~date, nbd, sum)
+```
+```{r fig.width=7, fig.height=6}
+hist(NsumStep$steps,col="Red",main="Total number of steps taken per day frequencies",xlab="Total number of steps")
+meanStepNew = mean(NsumStep$steps)
+medianStepNew = median(NsumStep$steps)
+```
+* The __mean__ total number of steps taken per day was _`r meansteps`_ and now it is _`r meanStepNew`_ thus being the same while the __median__ total number of steps taken per day was _`r mediansteps`_ and now it is _`r medianStepNew`_ which is not a big difference.
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r echo=TRUE}
+#create a new factor variable "wd" with two levels "Weekday" and "weekend"
+bd['wd'] = factor(sapply(bd$date, function(x){ if (weekdays(x) == "Sunday" | weekdays(x) == "Saturday") { "weekend" } else { "weekday"} }))
+
+#calculate the mean number of steps given time interval and wd
+meanwd = aggregate(steps~interval + wd, mean, data=bd)
+
+library(lattice)
+xyplot( steps ~ interval | wd, data = meanwd, type="l", layout=c(1,2), xlab="Interval", ylab="Mean number of steps")
+
+```
